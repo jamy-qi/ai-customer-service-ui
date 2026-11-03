@@ -4,8 +4,8 @@ import { TopBar } from '@/components/TopBar'
 import { SidePanel, SidePanelContent } from '@/components/SidePanel'
 import { ChatArea } from '@/components/ChatArea'
 import { MistakesPanel } from '@/components/MistakesPanel'
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
-import { fetchHealth, fetchStats, streamChat } from '@/lib/api'
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
+import { fetchHealth, fetchMeta, fetchStats, streamChat } from '@/lib/api'
 import {
   loadActiveId,
   loadSessions,
@@ -23,10 +23,29 @@ import {
   hasAnswerSection,
   loadMistakes,
 } from '@/lib/mistakes'
-import type { ChatMessage, Health, Mistake, Mode, Session, Stats, StreamPhase } from '@/types'
+import type {
+  ChatMessage,
+  Health,
+  KnowledgeMeta,
+  Mistake,
+  Mode,
+  Session,
+  Stats,
+  StreamPhase,
+} from '@/types'
 
 /** 发送时只携带最近 10 轮对话（一问一答共 20 条），防止长会话历史超出模型上下文 */
 const HISTORY_LIMIT = 20
+
+/** meta 不可用时保留基础问答能力，本地数据使用独立的 default 命名空间。 */
+const FALLBACK_META: KnowledgeMeta = {
+  kbId: 'default',
+  appName: '知识库问答',
+  tagline: '',
+  modes: ['qa'],
+  examples: [],
+  interviewGuides: [],
+}
 
 /** 请求生命周期：idle = 无进行中请求；其余值来自 SSE status 事件 */
 type SendState = 'idle' | StreamPhase
@@ -38,6 +57,8 @@ function uid(): string {
 }
 
 export default function Home() {
+  const [meta, setMeta] = useState<KnowledgeMeta | null>(null)
+  const kbId = meta?.kbId ?? FALLBACK_META.kbId
   const [stats, setStats] = useState<Stats | null>(null)
   const [statsError, setStatsError] = useState(false)
   const [health, setHealth] = useState<Health | null>(null)
@@ -84,6 +105,36 @@ export default function Home() {
   // 标记"当前 messages 来自浏览恢复"，持久化 effect 对同一引用跳过，避免仅浏览就刷新 updatedAt
   const restoredMessagesRef = useRef<ChatMessage[] | null>(null)
 
+  // 先取得 kbId，再恢复对应知识库的本地会话；meta 失败时退化为基础问答。
+  useEffect(() => {
+    let active = true
+    fetchMeta()
+      .catch(() => FALLBACK_META)
+      .then((data) => {
+        if (!active) return
+        setMeta(data)
+        document.title = data.appName
+
+        const list = loadSessions(data.kbId)
+        setSessions(list)
+        // 用户已在 meta 返回前开始提问时，不用历史会话覆盖新对话。
+        if (requestRef.current) return
+        const wanted = loadActiveId(data.kbId)
+        const saved = list.find((s) => s.id === wanted) ?? list[0]
+        if (saved) {
+          restoredMessagesRef.current = saved.messages
+          activeIdRef.current = saved.id
+          setActiveId(saved.id)
+          setMessages(saved.messages)
+          setMode(data.modes.includes(saved.mode) ? saved.mode : 'qa')
+          setTopic(saved.topic)
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
   // 加载统计信息（失败不阻塞聊天）
   useEffect(() => {
     fetchStats()
@@ -98,29 +149,13 @@ export default function Home() {
       .catch(() => setHealth(null))
   }, [])
 
-  // 错题本：初始加载 + 订阅变化（任何入口增删改都会实时刷新徽标计数）
+  // 错题本：按 kbId 加载并订阅变化（任何入口增删改都会实时刷新徽标计数）
   useEffect(() => {
-    setMistakes(loadMistakes())
-    const onChanged = () => setMistakes(loadMistakes())
+    setMistakes(loadMistakes(kbId))
+    const onChanged = () => setMistakes(loadMistakes(kbId))
     window.addEventListener(MISTAKES_CHANGED, onChanged)
     return () => window.removeEventListener(MISTAKES_CHANGED, onChanged)
-  }, [])
-
-  // 刷新后恢复上次的当前会话
-  useEffect(() => {
-    const list = loadSessions()
-    setSessions(list)
-    const wanted = loadActiveId()
-    const active = list.find((s) => s.id === wanted) ?? list[0]
-    if (active) {
-      restoredMessagesRef.current = active.messages
-      activeIdRef.current = active.id
-      setActiveId(active.id)
-      setMessages(active.messages)
-      setMode(active.mode)
-      setTopic(active.topic)
-    }
-  }, [])
+  }, [kbId])
 
   // 稳定终态落盘：仅写入空闲（无进行中请求）时的消息快照；纯失败会话（所有消息均为错误）不写存储。
   // 浏览器存储不可用时 toast 提示，不静默失败。
@@ -142,12 +177,12 @@ export default function Home() {
         messages: msgs,
         updatedAt: Date.now(),
       }
-      const { list, ok } = upsertSession(session)
+      const { list, ok } = upsertSession(session, kbId)
       setSessions(list)
-      saveActiveId(id)
+      saveActiveId(id, kbId)
       if (!ok) toast.error('会话保存失败：浏览器存储不可用')
     },
-    [mode, topic],
+    [kbId, mode, topic],
   )
 
   // 空闲状态下消息/配置变化（含流式结束后的终态）自动持久化；
@@ -168,8 +203,8 @@ export default function Home() {
     restoredMessagesRef.current = null
     activeIdRef.current = null
     setActiveId(null)
-    saveActiveId(null)
-  }, [])
+    saveActiveId(null, kbId)
+  }, [kbId])
 
   const handleNewChat = useCallback(() => {
     clearCurrent() // 旧会话已持久化，保留在历史列表里
@@ -215,17 +250,17 @@ export default function Home() {
       activeIdRef.current = s.id
       setActiveId(s.id)
       setMessages(s.messages)
-      setMode(s.mode)
+      setMode(meta?.modes.includes(s.mode) === false ? 'qa' : s.mode)
       setTopic(s.topic)
       setInput('')
-      saveActiveId(s.id)
+      saveActiveId(s.id, kbId)
     },
-    [],
+    [kbId, meta],
   )
 
   const handleDeleteSession = useCallback(
     (id: string) => {
-      const { list, ok } = removeSession(id)
+      const { list, ok } = removeSession(id, kbId)
       if (!ok) {
         // 写入失败时不动侧栏：否则侧栏消失、刷新后复现，用户毫无察觉
         toast.error('删除失败：浏览器存储不可用')
@@ -236,7 +271,7 @@ export default function Home() {
         clearCurrent()
       }
     },
-    [clearCurrent],
+    [clearCurrent, kbId],
   )
 
   const send = useCallback(
@@ -328,11 +363,14 @@ export default function Home() {
             const q = extractQuestion(prevAsst.content)
             // 太短的「题目」是提取失败的残留（如空「下一题：」尾巴），不记录
             if (q.length >= 4) {
-              const { isNew, ok } = addMistake({
-                question: q,
-                answer: extractAnswer(acc),
-                topic: effTopic,
-              })
+              const { isNew, ok } = addMistake(
+                {
+                  question: q,
+                  answer: extractAnswer(acc),
+                  topic: effTopic,
+                },
+                kbId,
+              )
               if (ok) {
                 toast(isNew ? '已自动收录到错题本' : '错题本已刷新该题记录', {
                   icon: '📕',
@@ -374,7 +412,7 @@ export default function Home() {
         }
       }
     },
-    [messages, k, mode, topic],
+    [messages, k, mode, topic, kbId],
   )
 
   const handleStop = useCallback(() => {
@@ -427,6 +465,7 @@ export default function Home() {
   const sidePanelProps = {
     mode,
     onModeChange: handleModeChange,
+    modes: meta?.modes ?? FALLBACK_META.modes,
     topics: stats?.topics ?? [],
     selectedTopic: topic,
     onTopicClick: handleTopicClick,
@@ -440,8 +479,9 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-dvh flex-col bg-background">
       <TopBar
+        appName={meta?.appName ?? null}
         stats={stats}
         health={health}
         statsError={statsError}
@@ -457,6 +497,8 @@ export default function Home() {
           streamingId={streamingId}
           sendState={sendState}
           sessionId={activeId}
+          meta={meta}
+          kbId={kbId}
           mode={mode}
           topic={topic}
           input={input}
@@ -474,6 +516,7 @@ export default function Home() {
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
         <SheetContent side="left" className="w-72 gap-0 border-r border-border bg-sidebar p-0 pt-12">
           <SheetTitle className="sr-only">导航菜单</SheetTitle>
+          <SheetDescription className="sr-only">管理对话模式、历史会话和知识库主题</SheetDescription>
           <SidePanelContent
             {...sidePanelProps}
             onSelectSession={(s) => {
@@ -500,6 +543,7 @@ export default function Home() {
         open={mistakesOpen}
         onOpenChange={setMistakesOpen}
         mistakes={mistakes}
+        kbId={kbId}
         onRetry={handleRetryMistake}
       />
     </div>

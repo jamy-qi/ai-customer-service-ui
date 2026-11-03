@@ -277,6 +277,8 @@ export function ChatArea({
                   stageHint={STAGE_HINT[sendState === 'idle' ? 'generating' : sendState]}
                   topic={topic}
                   pairedQuestion={pairedQuestions.get(m.id) ?? null}
+                  kbId={kbId}
+                  canSaveMistake={hasInterview}
                   onRetry={
                     // retryable:false 或无法确定原提问（旧数据 + hideUser 首问）的错误不提供重试入口
                     m.error && m.retryable !== false && onRetry && retryQuestionOf(messages, m.id)
