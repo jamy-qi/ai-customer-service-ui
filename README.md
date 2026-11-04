@@ -38,8 +38,8 @@
 环境要求：Node.js 22.12+ 与 npm。
 
 ```bash
-git clone https://github.com/jamy-qi/rag-chat-ui.git
-cd rag-chat-ui
+git clone https://github.com/jamy-qi/ai-customer-service-ui.git
+cd ai-customer-service-ui
 npm ci
 npm run dev:mock
 ```
