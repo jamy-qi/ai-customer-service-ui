@@ -67,14 +67,14 @@ export function SidePanelContent({
               className="rounded-full text-muted-foreground transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:font-semibold data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
             >
               <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              问答
+              智能客服
             </TabsTrigger>
             <TabsTrigger
               value="interview"
               className="rounded-full text-muted-foreground transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:font-semibold data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
             >
               <GraduationCap className="mr-1.5 h-3.5 w-3.5" />
-              模拟面试
+              客服训练
             </TabsTrigger>
           </TabsList>
         </Tabs>

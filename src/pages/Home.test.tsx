@@ -150,11 +150,11 @@ describe('Home 请求生命周期', () => {
     })
 
     render(<Home />)
-    // 切到模拟面试模式（Radix Tabs 在 mouseDown 时激活）后从空状态直接开考：
+    // 切到客服训练模式（Radix Tabs 在 mouseDown 时激活）后从空状态直接开考：
     // hideUser，会话里只有 assistant 错误消息
     // Tabs 由 meta.modes 驱动，需等 meta 加载
-    fireEvent.mouseDown(await screen.findByRole('tab', { name: /模拟面试/ }))
-    fireEvent.click(await screen.findByRole('button', { name: /综合模拟面试/ }))
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: /客服训练/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /综合客服考核/ }))
 
     await screen.findByText(/检索失败/)
     // 流式收尾完成：停止按钮消失、发送按钮回归
@@ -462,9 +462,9 @@ describe('Home 错题手动收藏：题答配对', () => {
       })
 
     render(<Home />)
-    // 切到模拟面试模式（Radix Tabs 在 mouseDown 时激活）后从空状态直接开考
-    fireEvent.mouseDown(await screen.findByRole('tab', { name: /模拟面试/ }))
-    fireEvent.click(await screen.findByRole('button', { name: /综合模拟面试/ }))
+    // 切到客服训练模式（Radix Tabs 在 mouseDown 时激活）后从空状态直接开考
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: /客服训练/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /综合客服考核/ }))
     await screen.findByText(/什么是 RAG？请简述其核心流程/)
     await waitFor(() =>
       expect(screen.getByRole('button', { name: '发送' })).toBeInTheDocument(),
@@ -627,7 +627,7 @@ describe('Home 元数据驱动', () => {
     // 无面试模式：Tabs / 错题本入口 / 面试引导全部隐藏
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /错题本/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /综合模拟面试/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /综合客服考核/ })).not.toBeInTheDocument()
   })
 
   it('modes 含 interview：Tabs/错题本/引导卡渲染，引导卡数据来自 meta.interviewGuides', async () => {
@@ -642,11 +642,11 @@ describe('Home 元数据驱动', () => {
     mockStreamChat.mockImplementationOnce(async () => {})
 
     render(<Home />)
-    expect(await screen.findByRole('tab', { name: /模拟面试/ })).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: /客服训练/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /错题本/ })).toBeInTheDocument()
 
     // 面试引导卡来自 meta.interviewGuides，点击后以该主题开考
-    fireEvent.mouseDown(screen.getByRole('tab', { name: /模拟面试/ }))
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /客服训练/ }))
     const guideCard = await screen.findByText('Rust 专题面试')
     expect(screen.getByText('限定 rust 主题出题')).toBeInTheDocument()
     fireEvent.click(guideCard)
@@ -655,7 +655,7 @@ describe('Home 元数据驱动', () => {
     expect(mockStreamChat.mock.calls[0][0].topic).toBe('rust')
   })
 
-  it('meta 请求失败：降级默认名「知识库问答」，可正常发送', async () => {
+  it('meta 请求失败：降级默认名「AI 智能客服」，可正常发送', async () => {
     mockFetchMeta.mockRejectedValueOnce(new Error('网络错误'))
     mockStreamChat.mockImplementationOnce(async (_req, _signal, handlers) => {
       handlers.onToken('降级路径的回答')
@@ -663,8 +663,8 @@ describe('Home 元数据驱动', () => {
     })
 
     render(<Home />)
-    expect((await screen.findAllByText('知识库问答')).length).toBeGreaterThanOrEqual(1)
-    await waitFor(() => expect(document.title).toBe('知识库问答'))
+    expect((await screen.findAllByText('AI 智能客服')).length).toBeGreaterThanOrEqual(1)
+    await waitFor(() => expect(document.title).toBe('AI 智能客服'))
     // 默认 modes ['qa']：无 Tabs，可直接提问
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
     sendQuestion('降级后还能问吗')

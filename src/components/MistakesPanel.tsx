@@ -235,7 +235,7 @@ export function MistakesPanel({ open, onOpenChange, mistakes, kbId, onRetry }: M
               <BookMarked className="h-8 w-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">错题本还是空的</p>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                模拟面试中答错或表示不会的题会自动收录到这里；也可以点击回答下方的「加入错题本」手动收藏。
+                客服训练中答错或表示不会的题会自动收录到这里；也可以点击回答下方的「加入错题本」手动收藏。
               </p>
             </div>
           ) : visible.length === 0 ? (

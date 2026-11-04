@@ -185,20 +185,20 @@ export function ChatArea({
                 <div className="rounded-xl border border-border bg-card p-5 text-left transition-colors duration-200 hover:border-primary/50">
                   <div className="flex items-center gap-2 font-semibold text-foreground">
                     <MessageSquare className="h-4 w-4 text-primary" />
-                    问答模式
+                    智能客服
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                    直接提问，系统从知识库检索相关内容并生成带引用的回答。点击左侧主题可快速填入提问。
+                    客户直接提问，系统从企业知识库检索政策与产品资料，生成带来源的回答。可点击主题限定咨询范围。
                   </p>
                 </div>
                 {hasInterview && (
                   <div className="rounded-xl border border-border bg-card p-5 text-left transition-colors duration-200 hover:border-primary/50">
                     <div className="flex items-center gap-2 font-semibold text-foreground">
                       <GraduationCap className="h-4 w-4 text-primary" />
-                      模拟面试模式
+                      客服训练
                     </div>
                     <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      系统扮演面试官出题，你作答后会得到点评并进入下一题。可先在左侧选择主题限定出题范围。
+                      系统模拟真实客服考核题，作答后给出标准口径与解析，并自动记录需要复习的题目。
                     </p>
                   </div>
                 )}
@@ -260,7 +260,7 @@ export function ChatArea({
                       className="glow-primary h-11 rounded-full px-8 font-semibold transition-all duration-200 hover:brightness-110"
                     >
                       <Play className="mr-2 h-4 w-4" />
-                      综合模拟面试（不限主题）
+                      综合客服考核（不限主题）
                     </Button>
                   </div>
                 )

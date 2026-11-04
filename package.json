@@ -2,7 +2,7 @@
   "name": "rag-chat-ui",
   "private": true,
   "version": "0.0.0",
-  "description": "Backend-agnostic RAG chat workbench UI",
+  "description": "Backend-agnostic AI customer service workbench UI",
   "type": "module",
   "scripts": {
     "dev": "vite",

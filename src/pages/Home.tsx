@@ -40,7 +40,7 @@ const HISTORY_LIMIT = 20
 /** meta 不可用时保留基础问答能力，本地数据使用独立的 default 命名空间。 */
 const FALLBACK_META: KnowledgeMeta = {
   kbId: 'default',
-  appName: '知识库问答',
+  appName: 'AI 智能客服',
   tagline: '',
   modes: ['qa'],
   examples: [],

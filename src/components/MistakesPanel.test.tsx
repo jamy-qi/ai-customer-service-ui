@@ -35,7 +35,7 @@ describe('MistakesPanel', () => {
   it('空列表显示友好空状态', () => {
     render(<MistakesPanel open onOpenChange={noop} kbId="kb1" mistakes={[]} onRetry={noop} />)
     expect(screen.getByText('错题本还是空的')).toBeInTheDocument()
-    expect(screen.getByText(/模拟面试中答错或表示不会的题会自动收录/)).toBeInTheDocument()
+    expect(screen.getByText(/客服训练中答错或表示不会的题会自动收录/)).toBeInTheDocument()
   })
 
   it('列表项显示题目 / 综合标签（topic=null）/ 复习次数，答案默认折叠', () => {

@@ -15,16 +15,16 @@
 
 ```json
 {
-  "kbId": "demo",
-  "appName": "知识库问答 Demo",
-  "tagline": "一个后端无关、可流式交互的 RAG 聊天工作台",
+  "kbId": "customer-service-demo",
+  "appName": "AI 智能客服 Demo",
+  "tagline": "基于企业知识库，为客户提供可追溯的即时解答",
   "modes": ["qa", "interview"],
-  "examples": ["什么是 RAG？"],
+  "examples": ["如何申请退货退款？"],
   "interviewGuides": [
     {
-      "title": "RAG 专题面试",
-      "desc": "围绕检索、生成与评估连续出题",
-      "topic": "技术文档"
+      "title": "售后政策考核",
+      "desc": "检验退换货政策与沟通口径",
+      "topic": "售后政策"
     }
   ]
 }
@@ -43,12 +43,12 @@
 
 ```json
 {
-  "chunks": 62,
-  "llm_model": "demo-llm",
+  "chunks": 96,
+  "llm_model": "demo-service-llm",
   "embed_model": "demo-embedding",
   "topics": [
-    { "name": "产品手册", "count": 18 },
-    { "name": "技术文档", "count": 32 }
+    { "name": "售后政策", "count": 24 },
+    { "name": "订单物流", "count": 28 }
   ]
 }
 ```
@@ -60,10 +60,10 @@
 ```json
 {
   "status": "ready",
-  "index": { "ok": true, "chunks": 62, "error": null },
+  "index": { "ok": true, "chunks": 96, "error": null },
   "llm": {
     "ok": true,
-    "model": "demo-llm",
+    "model": "demo-service-llm",
     "base": "http://localhost:11434",
     "error": null
   }
