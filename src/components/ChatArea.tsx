@@ -17,8 +17,9 @@ import {
 } from 'lucide-react'
 import { MessageItem } from '@/components/MessageItem'
 import { retryQuestionOf } from '@/lib/sessions'
+import { buildHandoffSummary } from '@/lib/handoff'
 import { cn, prefersReducedMotion, shouldPin } from '@/lib/utils'
-import type { ChatMessage, KnowledgeMeta, Mode, StreamPhase } from '@/types'
+import type { AnswerFeedback, ChatMessage, KnowledgeMeta, Mode, StreamPhase } from '@/types'
 
 /** 空态示例卡/引导卡图标：meta 不带图标字段，按序号轮换这组通用图标 */
 const CARD_ICONS = [MessageSquare, Database, Sparkles, Network, ShieldAlert, Layers] as const
@@ -55,6 +56,8 @@ interface ChatAreaProps {
   pairedQuestions: Map<string, string>
   /** 错误消息的重试回调 */
   onRetry?: (failedMsgId: string) => void
+  /** 回答满意度反馈，随当前会话持久化 */
+  onFeedback: (messageId: string, feedback: AnswerFeedback) => void
 }
 
 export function ChatArea({
@@ -75,6 +78,7 @@ export function ChatArea({
   onStartTopicInterview,
   pairedQuestions,
   onRetry,
+  onFeedback,
 }: ChatAreaProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -279,6 +283,8 @@ export function ChatArea({
                   pairedQuestion={pairedQuestions.get(m.id) ?? null}
                   kbId={kbId}
                   canSaveMistake={hasInterview}
+                  handoffSummary={buildHandoffSummary(messages, m.id, topic)}
+                  onFeedback={onFeedback}
                   onRetry={
                     // retryable:false 或无法确定原提问（旧数据 + hideUser 首问）的错误不提供重试入口
                     m.error && m.retryable !== false && onRetry && retryQuestionOf(messages, m.id)

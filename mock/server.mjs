@@ -155,15 +155,42 @@ async function handleChat(req, res) {
     return
   }
 
+  const question = String(body.question ?? '')
   const interview = body.mode === 'interview'
-  if (!interview) sendEvent(res, { type: 'sources', sources })
-  sendEvent(res, { type: 'status', phase: llmOff ? 'fallback' : 'generating' })
+  const userRequested = !interview && /人工|真人客服/.test(question)
+  const supported = ['退货', '退款', '物流', '订单', '重置', '配网', '设备'].some((keyword) =>
+    question.includes(keyword),
+  )
+  const handoffReason = userRequested ? 'user_requested' : !interview && !supported ? 'low_confidence' : null
 
+  if (!interview) {
+    const resultSources = userRequested
+      ? []
+      : handoffReason
+        ? sources.slice(0, 1).map((source) => ({ ...source, score: 0.28 }))
+        : sources
+    sendEvent(res, { type: 'sources', sources: resultSources })
+  }
+
+  if (handoffReason) {
+    sendEvent(res, {
+      type: 'handoff',
+      reason: handoffReason,
+      message: userRequested
+        ? '已为你准备人工交接入口。演示环境不会通知真实坐席，你可以复制对话摘要后交给客服人员。'
+        : '当前知识库中没有足够可靠的资料支持回答。为避免误导，暂未生成答案，你可以转人工继续处理。',
+    })
+    sendEvent(res, { type: 'done' })
+    res.end()
+    return
+  }
+
+  sendEvent(res, { type: 'status', phase: llmOff ? 'fallback' : 'generating' })
   const answer = interview
-    ? interviewAnswer(String(body.question ?? ''), body.topic)
+    ? interviewAnswer(question, body.topic)
     : llmOff
       ? `本地模型暂不可用，以下为知识库摘录：\n\n${sources[0].text}[1]`
-      : answerFor(String(body.question ?? ''))
+      : answerFor(question)
 
   for (const char of Array.from(answer)) {
     if (closed) return

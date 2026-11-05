@@ -705,3 +705,47 @@ describe('Home 元数据驱动', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('Home 可信拒答与满意度反馈', () => {
+  it('handoff 后忽略后续 token，并提供包含最近对话的人工交接摘要', async () => {
+    mockStreamChat.mockImplementationOnce(async (_req, _signal, handlers) => {
+      handlers.onHandoff({
+        type: 'handoff',
+        reason: 'low_confidence',
+        message: '资料不足，暂未生成答案',
+      })
+      handlers.onToken('不应展示的不可靠回答')
+      handlers.onDone()
+    })
+
+    render(<Home />)
+    sendQuestion('知识库外的问题')
+    await screen.findByText('暂未直接回答')
+    expect(screen.getByText('资料不足，暂未生成答案')).toBeInTheDocument()
+    expect(screen.queryByText(/不应展示的不可靠回答/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '查看人工交接' }))
+    const summary = await screen.findByLabelText('人工交接摘要')
+    expect((summary as HTMLTextAreaElement).value).toContain('客户：知识库外的问题')
+    expect((summary as HTMLTextAreaElement).value).toContain('交接原因：检索资料置信度不足')
+    expect(screen.getByText(/不会自动通知客服/)).toBeInTheDocument()
+  })
+
+  it('满意度反馈更新选中状态并随会话写入 localStorage', async () => {
+    mockStreamChat.mockImplementationOnce(async (_req, _signal, handlers) => {
+      handlers.onToken('可供评价的回答')
+      handlers.onDone()
+    })
+
+    render(<Home />)
+    sendQuestion('需要反馈的问题')
+    const down = await screen.findByRole('button', { name: '回答没用' })
+    fireEvent.click(down)
+    expect(down).toHaveAttribute('aria-pressed', 'true')
+
+    await waitFor(() => {
+      const saved = loadSessions('test-kb')
+      expect(saved[0].messages.find((message) => message.role === 'assistant')?.feedback).toBe('down')
+    })
+  })
+})

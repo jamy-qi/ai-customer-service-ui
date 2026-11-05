@@ -19,6 +19,14 @@ export interface Source {
   score: number
 }
 
+export type HandoffReason = 'low_confidence' | 'user_requested' | 'knowledge_gap'
+export type AnswerFeedback = 'up' | 'down'
+
+export interface Handoff {
+  reason: HandoffReason
+  message: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -33,6 +41,10 @@ export interface ChatMessage {
   retryable?: boolean
   /** 触发这条 assistant 消息的原始提问（随会话持久化，错误重试绑定原请求用） */
   requestQuestion?: string
+  /** 后端判定不宜直接回答时的拒答与人工升级信息 */
+  handoff?: Handoff
+  /** 用户对本次回答的满意度，随会话保存在当前浏览器 */
+  feedback?: AnswerFeedback
 }
 
 export interface ChatRequest {
@@ -76,6 +88,7 @@ export type SSEEvent =
   | { type: 'status'; phase: StreamPhase }
   | { type: 'sources'; sources: Source[] }
   | { type: 'token'; content: string }
+  | ({ type: 'handoff' } & Handoff)
   | { type: 'done' }
   | ({ type: 'error' } & StreamError)
 

@@ -35,6 +35,13 @@ function dispatch(raw, handlers) {
     case 'token':
       if (typeof evt.content === 'string') handlers.onToken(evt.content)
       break
+    case 'handoff':
+      if (typeof evt.reason === 'string' && typeof evt.message === 'string') {
+        handlers.onHandoff({ type: 'handoff', reason: evt.reason, message: evt.message })
+      } else {
+        handlers.onError({ code: 'SSE_SCHEMA', message: '人工接管数据格式异常', retryable: true })
+      }
+      break
     case 'error':
       handlers.onError({
         code: typeof evt.code === 'string' ? evt.code : 'BACKEND_ERROR',

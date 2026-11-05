@@ -6,6 +6,7 @@ export interface StreamHandlers {
   onStatus: (phase: StreamPhase) => void
   onSources: (sources: Extract<SSEEvent, { type: 'sources' }>['sources']) => void
   onToken: (content: string) => void
+  onHandoff: (handoff: Extract<SSEEvent, { type: 'handoff' }>) => void
   onError: (error: StreamErrorPayload) => void
   onDone: () => void
 }

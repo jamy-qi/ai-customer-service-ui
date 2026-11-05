@@ -21,15 +21,25 @@ interface Collected {
   errors: string[]
   errorObjs: StreamErrorPayload[]
   statuses: string[]
+  handoffs: Array<{ reason: string; message: string }>
   doneCount: number
 }
 
 async function run(chunks: string[]): Promise<Collected> {
-  const got: Collected = { sources: [], text: '', errors: [], errorObjs: [], statuses: [], doneCount: 0 }
+  const got: Collected = {
+    sources: [],
+    text: '',
+    errors: [],
+    errorObjs: [],
+    statuses: [],
+    handoffs: [],
+    doneCount: 0,
+  }
   await consumeSSE(streamOf(chunks), {
     onStatus: (p) => got.statuses.push(p),
     onSources: (s) => got.sources.push(s as unknown[]),
     onToken: (t) => (got.text += t),
+    onHandoff: (h) => got.handoffs.push({ reason: h.reason, message: h.message }),
     onError: (e) => {
       got.errorObjs.push(e)
       got.errors.push(e.message)
@@ -177,6 +187,22 @@ describe('consumeSSE', () => {
     expect(got.errorObjs).toHaveLength(1)
     expect(got.errorObjs[0].code).toBe('SSE_SCHEMA')
     expect(got.text).toBe('续')
+  })
+
+  it('handoff 事件分发结构化拒答原因和交接文案', async () => {
+    const got = await run([
+      'data: {"type":"handoff","reason":"low_confidence","message":"资料不足，未生成答案"}\n\n' +
+        'data: {"type":"done"}\n\n',
+    ])
+    expect(got.handoffs).toEqual([{ reason: 'low_confidence', message: '资料不足，未生成答案' }])
+    expect(got.errors).toEqual([])
+    expect(got.doneCount).toBe(1)
+  })
+
+  it('handoff 事件缺字段时报告 SSE_SCHEMA 错误', async () => {
+    const got = await run(['data: {"type":"handoff","reason":"low_confidence"}\n\n'])
+    expect(got.handoffs).toEqual([])
+    expect(got.errorObjs[0]).toMatchObject({ code: 'SSE_SCHEMA', message: '人工接管数据格式异常' })
   })
 
   it('EOF 无 done 帧时 onDone 仍被调用一次（连接正常结束即视为完成）', async () => {

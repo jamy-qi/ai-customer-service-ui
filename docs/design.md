@@ -121,8 +121,20 @@ data: {"type":"done"}
 | `status` | `phase` | `retrieving`、`generating` 或 `fallback` |
 | `sources` | `sources` | 来源数组，字段为 `title/text/source/score` |
 | `token` | `content` | 增量文本，前端按到达顺序追加 |
+| `handoff` | `reason/message` | 拒答与人工升级终态；`reason` 为 `low_confidence`、`user_requested` 或 `knowledge_gap` |
 | `error` | `code/message/retryable` | 结构化错误；`retryable: false` 时隐藏重试按钮 |
 | `done` | 无 | 正常完成；EOF 也会被前端兜底视为完成 |
+
+当检索资料不足以支持可靠回答或客户主动要求人工服务时，后端应发送 `handoff`，随后发送 `done`，不再生成答案 token。前端收到 `handoff` 后会忽略后续 token，展示拒答原因与人工交接入口。当前人工入口只生成可复制的最近对话摘要，不会通知真实坐席或创建工单。
+
+```text
+data: {"type":"handoff","reason":"low_confidence","message":"资料不足，暂未生成答案"}
+
+data: {"type":"done"}
+
+```
+
+正常回答完成后，用户可提交 `up` / `down` 满意度反馈。反馈保存在消息的 `feedback` 字段并随会话写入 localStorage，不需要额外后端接口。
 
 典型状态机：
 

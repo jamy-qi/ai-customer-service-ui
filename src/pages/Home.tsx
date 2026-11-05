@@ -315,6 +315,7 @@ export default function Home() {
       // 本地累积流式内容：流结束后 state 可能尚未刷新，自动记录错题以这里为准
       let acc = ''
       let streamError = false
+      let handedOff = false
 
       try {
         await streamChat(
@@ -332,10 +333,24 @@ export default function Home() {
             },
             onSources: (sources) => patch((m) => ({ ...m, sources })),
             onToken: (content) => {
+              // handoff 是拒答终态：即使后端继续推 token，也不展示无依据回答
+              if (handedOff) return
               acc += content
               patch((m) => ({ ...m, content: m.content + content }))
             },
+            onHandoff: ({ reason, message }) => {
+              handedOff = true
+              acc = message
+              patch((m) => ({
+                ...m,
+                content: message,
+                handoff: { reason, message },
+                error: false,
+                feedback: undefined,
+              }))
+            },
             onError: (err) => {
+              if (handedOff) return
               streamError = true
               // 追加而非覆盖：error 到达前可能已有部分 token 内容
               patch((m) => ({
@@ -418,6 +433,18 @@ export default function Home() {
   const handleStop = useCallback(() => {
     // 只 abort：收尾（停止标记/状态复位/落盘）由 send 的 catch/finally 完成
     requestRef.current?.ctrl.abort()
+  }, [])
+
+  const handleFeedback = useCallback((messageId: string, feedback: 'up' | 'down') => {
+    restoredMessagesRef.current = null
+    setMessages((prev) =>
+      prev.map((message) => (message.id === messageId ? { ...message, feedback } : message)),
+    )
+    if (feedback === 'down') {
+      toast('已记录“没用”，可通过“转人工”复制交接摘要')
+    } else {
+      toast.success('感谢反馈，已标记为有用')
+    }
   }, [])
 
   // 错误消息重试：移除错误占位后重发该消息绑定的原问题（requestQuestion，或前一条 user 消息）。
@@ -509,6 +536,7 @@ export default function Home() {
           onStartTopicInterview={handleStartTopicInterview}
           pairedQuestions={pairedQuestions}
           onRetry={handleRetry}
+          onFeedback={handleFeedback}
         />
       </div>
 

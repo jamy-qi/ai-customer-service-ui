@@ -24,6 +24,7 @@ function noopHandlers(over: Partial<StreamHandlers> = {}): StreamHandlers {
     onStatus: () => {},
     onSources: () => {},
     onToken: () => {},
+    onHandoff: () => {},
     onError: () => {},
     onDone: () => {},
     ...over,

@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import { toast } from 'sonner'
-import { AlertTriangle, BookmarkPlus, Bot, Check, Copy, User } from 'lucide-react'
+import { AlertTriangle, BookmarkPlus, Bot, Check, Copy, ShieldX, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SCORE_LOW } from '@/lib/constants'
 import { linkifyCitations, scrollToCitationAnchor, sourceAnchorId } from '@/lib/citations'
 import { SourceCard } from '@/components/SourceCard'
+import { AnswerFeedback } from '@/components/AnswerFeedback'
+import { HandoffDialog } from '@/components/HandoffDialog'
 import { Spinner } from '@/components/ui/spinner'
 import { addMistake, extractAnswer, extractQuestion } from '@/lib/mistakes'
-import type { ChatMessage } from '@/types'
+import type { AnswerFeedback as FeedbackValue, ChatMessage } from '@/types'
 
 interface MessageItemProps {
   message: ChatMessage
@@ -23,6 +25,10 @@ interface MessageItemProps {
   canSaveMistake: boolean
   /** 错误消息的重试回调 */
   onRetry?: (failedMsgId: string) => void
+  /** 当前消息对应的人工交接摘要；未提供时不显示人工入口 */
+  handoffSummary?: string
+  /** 回答满意度反馈 */
+  onFeedback?: (messageId: string, feedback: FeedbackValue) => void
   /** 流式阶段提示（retrieving/generating/fallback 文案）；仅 streaming 且尚无内容时显示 */
   stageHint?: string | null
 }
@@ -54,12 +60,23 @@ const markdownComponents: Components = {
   },
 }
 
-export function MessageItem({ message, streaming, topic, pairedQuestion, kbId, canSaveMistake, onRetry, stageHint }: MessageItemProps) {
+export function MessageItem({
+  message,
+  streaming,
+  topic,
+  pairedQuestion,
+  kbId,
+  canSaveMistake,
+  onRetry,
+  handoffSummary,
+  onFeedback,
+  stageHint,
+}: MessageItemProps) {
   const isUser = message.role === 'user'
   const sources = message.sources ?? []
   const [copied, setCopied] = useState(false)
   const lowScore =
-    !isUser && sources.length > 0 && sources.every((s) => s.score < SCORE_LOW)
+    !isUser && !message.handoff && sources.length > 0 && sources.every((s) => s.score < SCORE_LOW)
 
   const handleSaveMistake = () => {
     const question = (pairedQuestion ?? extractQuestion(message.content)).trim()
@@ -126,11 +143,22 @@ export function MessageItem({ message, streaming, topic, pairedQuestion, kbId, c
               'rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm',
               message.error
                 ? 'border border-red-500/30 bg-red-500/10 text-red-400'
-                : 'border border-border bg-card',
+                : message.handoff
+                  ? 'border border-warning/40 bg-warning/10'
+                  : 'border border-border bg-card',
             )}
           >
             {message.error ? (
               <p className="whitespace-pre-wrap">{message.content}</p>
+            ) : message.handoff ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-warning">
+                  <ShieldX className="h-4 w-4 shrink-0" />
+                  暂未直接回答
+                </div>
+                <p className="leading-relaxed text-foreground">{message.content}</p>
+                {handoffSummary && <HandoffDialog summary={handoffSummary} fallback />}
+              </div>
             ) : streaming && !message.content && stageHint ? (
               /* 首个 token 到达前：按 sendState 显示阶段提示 */
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -172,40 +200,49 @@ export function MessageItem({ message, streaming, topic, pairedQuestion, kbId, c
             </div>
           )}
 
-          {/* 无来源的中性提示：回答生成完毕、非错误、有内容但未检索到资料 */}
-          {sources.length === 0 && !streaming && !message.error && message.content.trim() && (
+          {/* 无来源的中性提示：拒答消息已有专门说明，不重复展示 */}
+          {sources.length === 0 && !streaming && !message.error && !message.handoff && message.content.trim() && (
             <p className="rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
               本次回答未检索到可用知识库资料
             </p>
           )}
 
-          {!streaming && !message.error && message.content.trim() && (
-            /* hover 操作条（参考 ChatGPT）：复制 + 加入错题本；移动端常显，桌面 hover/focus-within 显现 */
-            <div className="flex items-center gap-1 opacity-100 transition-opacity duration-150 focus-within:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
-              <button
-                type="button"
-                onClick={() => void handleCopy()}
-                title="复制 Markdown 原文"
-                aria-label="复制 Markdown 原文"
-                className="rounded-md p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                {copied ? (
-                  <Check className="h-3.5 w-3.5 text-primary" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </button>
-              {canSaveMistake && (
+          {!streaming && !message.error && !message.handoff && message.content.trim() && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {onFeedback && (
+                <AnswerFeedback
+                  value={message.feedback}
+                  onChange={(feedback) => onFeedback(message.id, feedback)}
+                />
+              )}
+              {/* 复制与错题操作保持轻量，桌面 hover 时显现 */}
+              <div className="flex items-center gap-1 opacity-100 transition-opacity duration-150 focus-within:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
                 <button
                   type="button"
-                  onClick={handleSaveMistake}
-                  title="加入错题本"
-                  aria-label="加入错题本"
+                  onClick={() => void handleCopy()}
+                  title="复制 Markdown 原文"
+                  aria-label="复制 Markdown 原文"
                   className="rounded-md p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
-                  <BookmarkPlus className="h-3.5 w-3.5" />
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
                 </button>
-              )}
+                {canSaveMistake && (
+                  <button
+                    type="button"
+                    onClick={handleSaveMistake}
+                    title="加入错题本"
+                    aria-label="加入错题本"
+                    className="rounded-md p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <BookmarkPlus className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              {handoffSummary && <HandoffDialog summary={handoffSummary} />}
             </div>
           )}
         </div>
