@@ -84,6 +84,9 @@ npm run dev
 | `npm run dev:mock` | 同时启动前端与内置 Mock API |
 | `npm run mock` | 仅启动 Mock API |
 | `npm test` | 运行 Vitest 单元与组件测试 |
+| `npm run test:e2e` | 运行 Playwright 浏览器端到端测试 |
+| `npm run test:e2e:ui` | 打开 Playwright 交互式测试界面 |
+| `npm run test:e2e:report` | 查看最近一次 E2E HTML 报告 |
 | `npm run lint` | 运行 ESLint |
 | `npm run build` | TypeScript 检查并生成 `dist/` |
 | `npm run preview` | 本地预览生产构建 |
@@ -100,6 +103,23 @@ MOCK_ERROR=1 npm run dev:mock
 # 调整逐字输出间隔（毫秒）
 MOCK_DELAY=80 npm run dev:mock
 ```
+
+## 浏览器端到端测试
+
+首次运行前安装 Chromium，然后执行测试：
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+Playwright 会自动启动并在结束后停止前端与 Mock API，无需先手动运行开发服务器。测试覆盖售后回答与来源引用、反馈刷新恢复、低置信度拒答、交接摘要复制、主动转人工、客服训练和 375px 移动端布局。失败时保留截图、Trace 和 HTML 报告。
+
+本机已有 Chrome 时，也可以通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定浏览器程序路径，无需重复下载 Chromium。
+
+## 持续集成
+
+`.github/workflows/ci.yml` 会在 `main` 分支推送及 Pull Request 时自动执行 ESLint、Vitest、生产构建和 Playwright E2E。E2E 失败时，GitHub Actions 会保留 7 天测试报告与 Trace，便于定位问题。
 
 ## 架构概览
 
@@ -124,20 +144,23 @@ flowchart LR
 
 ```text
 .
-├── mock/                    # 零依赖演示 API 与联合启动脚本
+├── .github/workflows/ci.yml # GitHub Actions 持续集成
+├── e2e/                   # Playwright 真实浏览器流程
+├── mock/                  # 零依赖演示 API 与联合启动脚本
 ├── src/
-│   ├── components/          # 顶栏、侧栏、消息、来源、错题本等
-│   ├── components/ui/       # shadcn/ui 基础组件
-│   ├── hooks/               # 响应式 Hook
-│   ├── lib/                 # API、SSE、会话、错题、主题与引用逻辑
-│   ├── pages/               # Home 页面与请求生命周期
-│   └── types/               # 前后端共享契约的 TypeScript 类型
+│   ├── components/        # 顶栏、侧栏、消息、来源、错题本等
+│   ├── components/ui/     # shadcn/ui 基础组件
+│   ├── hooks/             # 响应式 Hook
+│   ├── lib/               # API、SSE、会话、错题、主题与引用逻辑
+│   ├── pages/             # Home 页面与请求生命周期
+│   └── types/             # 前后端共享契约的 TypeScript 类型
 ├── docs/
-│   ├── design.md            # API、SSE、状态与存储设计
-│   ├── components.md        # 组件职责与数据流
-│   └── screenshots/         # README 界面截图
-├── .env.example             # 后端与 Mock 配置示例
-└── vite.config.ts           # Vite 与开发代理配置
+│   ├── design.md          # API、SSE、状态与存储设计
+│   ├── components.md      # 组件职责与数据流
+│   └── screenshots/       # README 界面截图
+├── .env.example           # 后端与 Mock 配置示例
+├── playwright.config.ts   # E2E 浏览器与演示服务配置
+└── vite.config.ts         # Vite 与开发代理配置
 ```
 
 ## 文档导航
@@ -150,7 +173,7 @@ flowchart LR
 
 - UI：React、TypeScript、Tailwind CSS、shadcn/ui、Lucide。
 - Markdown：`react-markdown`，引用标记在渲染前转换为页内锚点。
-- 测试：Vitest、Testing Library、JSDOM。
+- 测试：Vitest、Testing Library、JSDOM、Playwright。
 - Mock：Node.js 原生 `node:http`，无额外运行时依赖。
 
 ## License
