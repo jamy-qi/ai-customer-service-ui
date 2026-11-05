@@ -135,6 +135,8 @@ data: {"type":"tool","name":"order_lookup","state":"success","message":"已查�
 
 真实后端必须在服务端验证客户身份和订单访问权限，再返回脱敏后的只读结果；不能把前端订单号校验当作鉴权。当前接口没有退款、改单、创建工单等写操作，内置 Mock 也只返回虚构演示订单。
 
+仓库内的 [只读订单 API 示例](../examples/readonly-order-api/README.md) 提供可运行的 `GET /api/orders/:orderId` 参考实现，演示 Bearer 凭证校验、订单与客户归属共同过滤、公开 DTO 白名单、收货信息脱敏，以及 `toOrderLookupEvent()` 的 SSE 转换方式。未知订单与他人订单统一返回 404，避免泄露订单归属；固定演示令牌和内存数据只能用于本机示例。
+
 当检索资料不足以支持可靠回答或客户主动要求人工服务时，后端应发送 `handoff`，随后发送 `done`，不再生成答案 token。前端收到 `handoff` 后会忽略后续 token，展示拒答原因与人工交接入口。当前人工入口只生成可复制的最近对话摘要，不会通知真实坐席或创建工单。
 
 ```text

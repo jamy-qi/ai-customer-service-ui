@@ -61,6 +61,8 @@ npm run dev:mock
 
 后端只需实现 4 个端点：`GET /api/meta`、`GET /api/stats`、`GET /api/health`、`POST /api/chat`。完整字段与 SSE 协议见 [接口与架构说明](docs/design.md)。
 
+真实订单查询的服务端参考实现见 [只读订单 API 示例](examples/readonly-order-api/README.md)，包含登录凭证校验、订单归属校验、响应字段白名单、收货信息脱敏和安全行为测试，可转换为现有 `order_lookup` SSE 事件。
+
 复制环境变量示例并修改后端地址：
 
 ```bash
@@ -84,6 +86,7 @@ npm run dev
 | `npm run dev` | 连接真实后端，启动开发服务器 |
 | `npm run dev:mock` | 同时启动前端与内置 Mock API |
 | `npm run mock` | 仅启动 Mock API |
+| `npm run example:order-api` | 启动带鉴权与脱敏的只读订单 API 示例 |
 | `npm test` | 运行 Vitest 单元与组件测试 |
 | `npm run test:e2e` | 运行 Playwright 浏览器端到端测试 |
 | `npm run test:e2e:ui` | 打开 Playwright 交互式测试界面 |
@@ -148,6 +151,7 @@ flowchart LR
 ├── .github/workflows/ci.yml # GitHub Actions 持续集成
 ├── e2e/                   # Playwright 真实浏览器流程
 ├── mock/                  # 零依赖演示 API 与联合启动脚本
+├── examples/readonly-order-api/ # 鉴权、归属校验与脱敏的后端参考实现
 ├── src/
 │   ├── components/        # 顶栏、侧栏、消息、来源、错题本等
 │   ├── components/ui/     # shadcn/ui 基础组件
