@@ -349,6 +349,8 @@ export default function Home() {
                 feedback: undefined,
               }))
             },
+            onTool: ({ name, state, message, order }) =>
+              patch((m) => ({ ...m, tool: { name, state, message, order } })),
             onError: (err) => {
               if (handedOff) return
               streamError = true

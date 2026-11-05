@@ -69,8 +69,31 @@ test('客服训练生成标准解析并自动收录错题', async ({ page }) => 
   await expect(page.getByRole('button', { name: '显示答案' })).toBeVisible()
 })
 
+test('只读订单查询展示物流状态卡并在刷新后恢复', async ({ page }) => {
+  await ask(page, '查询订单 A20261101001 的物流')
+  const card = page.getByLabel('订单查询结果')
+  await expect(card).toContainText('A20261101001')
+  await expect(card).toContainText('运输中')
+  await expect(card).toContainText('SF-DEMO-20261101')
+  await expect(card.getByRole('list', { name: '物流时间线' })).toContainText('包裹已发出')
+  await expect(card).toContainText('不会执行退款、改单或其他写操作')
+
+  await page.reload()
+  await expect(page.getByLabel('订单查询结果')).toContainText('SF-DEMO-20261101')
+  await expect(page.getByRole('list', { name: '物流时间线' })).toContainText('商家已发货')
+})
+
 test.describe('移动端', () => {
   test.use({ viewport: { width: 375, height: 812 } })
+
+  test('375px 未查询到订单时展示空状态且无横向溢出', async ({ page }) => {
+    await ask(page, '查询订单 A12345678901 的物流')
+    const card = page.getByLabel('订单查询结果')
+    await expect(card).toContainText('未查询到订单')
+    await expect(card).toContainText('A12345678901')
+    await expect(page.getByRole('list', { name: '物流时间线' })).toHaveCount(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
 
   test('375px 拒答与交接弹窗无横向溢出，人工入口可触控', async ({ page }) => {
     await ask(page, '月球基地如何领取保修？')

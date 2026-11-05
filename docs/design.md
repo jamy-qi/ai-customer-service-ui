@@ -122,8 +122,18 @@ data: {"type":"done"}
 | `sources` | `sources` | 来源数组，字段为 `title/text/source/score` |
 | `token` | `content` | 增量文本，前端按到达顺序追加 |
 | `handoff` | `reason/message` | 拒答与人工升级终态；`reason` 为 `low_confidence`、`user_requested` 或 `knowledge_gap` |
+| `tool` | `name/state/message/order` | 结构化工具结果；当前仅支持只读 `order_lookup` |
 | `error` | `code/message/retryable` | 结构化错误；`retryable: false` 时隐藏重试按钮 |
 | `done` | 无 | 正常完成；EOF 也会被前端兜底视为完成 |
+
+`order_lookup` 的 `state` 为 `success`、`empty` 或 `error`。成功时 `order` 包含订单号、商品、状态、承运方、运单号、更新时间和物流时间线；空结果或错误时通过 `message` 说明原因。前端将结果保存在当前 assistant 消息的 `tool` 字段，并随会话写入 localStorage，刷新后仍可展示。
+
+```text
+data: {"type":"tool","name":"order_lookup","state":"success","message":"已查询到演示订单","order":{"orderId":"A20261101001","itemName":"便携智能音箱 × 1","statusLabel":"运输中","carrier":"顺丰速运（演示）","trackingNo":"SF-DEMO-20261101","updatedAt":"2026-11-05 10:26","timeline":[{"time":"2026-11-05 10:26","location":"杭州转运中心","description":"包裹已发出"}]}}
+
+```
+
+真实后端必须在服务端验证客户身份和订单访问权限，再返回脱敏后的只读结果；不能把前端订单号校验当作鉴权。当前接口没有退款、改单、创建工单等写操作，内置 Mock 也只返回虚构演示订单。
 
 当检索资料不足以支持可靠回答或客户主动要求人工服务时，后端应发送 `handoff`，随后发送 `done`，不再生成答案 token。前端收到 `handoff` 后会忽略后续 token，展示拒答原因与人工交接入口。当前人工入口只生成可复制的最近对话摘要，不会通知真实坐席或创建工单。
 

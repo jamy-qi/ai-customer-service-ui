@@ -731,6 +731,49 @@ describe('Home 可信拒答与满意度反馈', () => {
     expect(screen.getByText(/不会自动通知客服/)).toBeInTheDocument()
   })
 
+  it('订单查询卡片随流式事件展示并将会话结果写入 localStorage', async () => {
+    mockStreamChat.mockImplementationOnce(async (_req, _signal, handlers) => {
+      handlers.onTool({
+        type: 'tool',
+        name: 'order_lookup',
+        state: 'success',
+        message: '已查询到演示订单',
+        order: {
+          orderId: 'A20261101001',
+          itemName: '便携智能音箱 × 1',
+          statusLabel: '运输中',
+          carrier: '顺丰速运（演示）',
+          trackingNo: 'SF-DEMO-20261101',
+          updatedAt: '2026-11-05 10:26',
+          timeline: [
+            {
+              time: '2026-11-05 10:26',
+              location: '杭州转运中心',
+              description: '包裹已发出',
+            },
+          ],
+        },
+      })
+      handlers.onToken('订单正在运输中')
+      handlers.onDone()
+    })
+
+    render(<Home />)
+    sendQuestion('查询订单 A20261101001 的物流')
+    const card = await screen.findByLabelText('订单查询结果')
+    expect(card).toHaveTextContent('SF-DEMO-20261101')
+    expect(card).toHaveTextContent('包裹已发出')
+
+    await waitFor(() => {
+      const saved = loadSessions('test-kb')
+      expect(saved[0].messages.find((message) => message.role === 'assistant')?.tool).toMatchObject({
+        name: 'order_lookup',
+        state: 'success',
+        order: { orderId: 'A20261101001' },
+      })
+    })
+  })
+
   it('满意度反馈更新选中状态并随会话写入 localStorage', async () => {
     mockStreamChat.mockImplementationOnce(async (_req, _signal, handlers) => {
       handlers.onToken('可供评价的回答')

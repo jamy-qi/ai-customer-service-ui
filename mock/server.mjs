@@ -10,7 +10,7 @@ const meta = {
   appName: 'AI 智能客服 Demo',
   tagline: '基于企业知识库，为客户提供可追溯的即时解答',
   modes: ['qa', 'interview'],
-  examples: ['如何申请退货退款？', '订单一直没有更新物流怎么办？', '如何重置设备并重新配网？'],
+  examples: ['如何申请退货退款？', '查询订单 A20261101001 的物流', '如何重置设备并重新配网？'],
   interviewGuides: [
     { title: '售后政策考核', desc: '检验退换货政策与沟通口径', topic: '售后政策' },
     { title: '产品使用考核', desc: '检验设备配置与故障排查能力', topic: '产品使用' },
@@ -62,6 +62,32 @@ const sources = [
     score: 0.76,
   },
 ]
+
+const demoOrder = {
+  orderId: 'A20261101001',
+  itemName: '便携智能音箱 × 1',
+  statusLabel: '运输中',
+  carrier: '顺丰速运（演示）',
+  trackingNo: 'SF-DEMO-20261101',
+  updatedAt: '2026-11-05 10:26',
+  timeline: [
+    {
+      time: '2026-11-05 10:26',
+      location: '杭州转运中心',
+      description: '包裹已发出，下一站上海转运中心',
+    },
+    {
+      time: '2026-11-04 18:40',
+      location: '杭州转运中心',
+      description: '包裹已到达转运中心',
+    },
+    {
+      time: '2026-11-03 14:12',
+      location: '杭州',
+      description: '商家已发货',
+    },
+  ],
+}
 
 function json(res, status, data) {
   res.writeHead(status, {
@@ -157,8 +183,12 @@ async function handleChat(req, res) {
 
   const question = String(body.question ?? '')
   const interview = body.mode === 'interview'
+  const orderId = !interview
+    ? (question.match(/[A-Za-z]\d{11}/)?.[0].toUpperCase() ?? null)
+    : null
+  const orderFound = orderId === demoOrder.orderId
   const userRequested = !interview && /人工|真人客服/.test(question)
-  const supported = ['退货', '退款', '物流', '订单', '重置', '配网', '设备'].some((keyword) =>
+  const supported = Boolean(orderId) || ['退货', '退款', '物流', '订单', '重置', '配网', '设备'].some((keyword) =>
     question.includes(keyword),
   )
   const handoffReason = userRequested ? 'user_requested' : !interview && !supported ? 'low_confidence' : null
@@ -185,12 +215,28 @@ async function handleChat(req, res) {
     return
   }
 
+  if (orderId) {
+    sendEvent(res, {
+      type: 'tool',
+      name: 'order_lookup',
+      state: orderFound ? 'success' : 'empty',
+      message: orderFound
+        ? `已查询到演示订单 ${orderId} 的只读状态。`
+        : `未查询到演示订单 ${orderId}，请核对订单号后重试。`,
+      order: orderFound ? demoOrder : undefined,
+    })
+  }
+
   sendEvent(res, { type: 'status', phase: llmOff ? 'fallback' : 'generating' })
   const answer = interview
     ? interviewAnswer(question, body.topic)
-    : llmOff
-      ? `本地模型暂不可用，以下为知识库摘录：\n\n${sources[0].text}[1]`
-      : answerFor(question)
+    : orderId
+      ? orderFound
+        ? `订单 **${orderId}** 当前处于 **${demoOrder.statusLabel}** 状态，最新物流为：${demoOrder.timeline[0].description}。[2]\n\n下方状态卡展示了完整演示物流节点。这里是只读查询，不会执行退款、改单或其他写操作。`
+        : `暂未查询到订单 **${orderId}** 的演示记录，请核对订单号。你也可以使用演示订单号 **${demoOrder.orderId}** 体验只读物流查询。`
+      : llmOff
+        ? `本地模型暂不可用，以下为知识库摘录：\n\n${sources[0].text}[1]`
+        : answerFor(question)
 
   for (const char of Array.from(answer)) {
     if (closed) return

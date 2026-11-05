@@ -8,6 +8,7 @@ import { linkifyCitations, scrollToCitationAnchor, sourceAnchorId } from '@/lib/
 import { SourceCard } from '@/components/SourceCard'
 import { AnswerFeedback } from '@/components/AnswerFeedback'
 import { HandoffDialog } from '@/components/HandoffDialog'
+import { OrderStatusCard } from '@/components/OrderStatusCard'
 import { Spinner } from '@/components/ui/spinner'
 import { addMistake, extractAnswer, extractQuestion } from '@/lib/mistakes'
 import type { AnswerFeedback as FeedbackValue, ChatMessage } from '@/types'
@@ -177,6 +178,8 @@ export function MessageItem({
               </div>
             )}
           </div>
+
+          {message.tool && <OrderStatusCard result={message.tool} />}
 
           {/* 错误消息的重试入口；无原提问可绑定时由 ChatArea 不传 onRetry */}
           {message.error && !streaming && onRetry && (

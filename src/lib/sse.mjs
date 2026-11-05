@@ -42,6 +42,23 @@ function dispatch(raw, handlers) {
         handlers.onError({ code: 'SSE_SCHEMA', message: '人工接管数据格式异常', retryable: true })
       }
       break
+    case 'tool':
+      if (
+        evt.name === 'order_lookup' &&
+        ['success', 'empty', 'error'].includes(evt.state) &&
+        typeof evt.message === 'string'
+      ) {
+        handlers.onTool({
+          type: 'tool',
+          name: evt.name,
+          state: evt.state,
+          message: evt.message,
+          order: evt.order,
+        })
+      } else {
+        handlers.onError({ code: 'SSE_SCHEMA', message: '订单查询数据格式异常', retryable: true })
+      }
+      break
     case 'error':
       handlers.onError({
         code: typeof evt.code === 'string' ? evt.code : 'BACKEND_ERROR',

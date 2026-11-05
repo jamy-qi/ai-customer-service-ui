@@ -22,6 +22,7 @@ interface Collected {
   errorObjs: StreamErrorPayload[]
   statuses: string[]
   handoffs: Array<{ reason: string; message: string }>
+  tools: unknown[]
   doneCount: number
 }
 
@@ -33,6 +34,7 @@ async function run(chunks: string[]): Promise<Collected> {
     errorObjs: [],
     statuses: [],
     handoffs: [],
+    tools: [],
     doneCount: 0,
   }
   await consumeSSE(streamOf(chunks), {
@@ -40,6 +42,7 @@ async function run(chunks: string[]): Promise<Collected> {
     onSources: (s) => got.sources.push(s as unknown[]),
     onToken: (t) => (got.text += t),
     onHandoff: (h) => got.handoffs.push({ reason: h.reason, message: h.message }),
+    onTool: (tool) => got.tools.push(tool),
     onError: (e) => {
       got.errorObjs.push(e)
       got.errors.push(e.message)
@@ -203,6 +206,29 @@ describe('consumeSSE', () => {
     const got = await run(['data: {"type":"handoff","reason":"low_confidence"}\n\n'])
     expect(got.handoffs).toEqual([])
     expect(got.errorObjs[0]).toMatchObject({ code: 'SSE_SCHEMA', message: '人工接管数据格式异常' })
+  })
+
+  it('tool 事件分发只读订单状态与物流时间线', async () => {
+    const got = await run([
+      'data: {"type":"tool","name":"order_lookup","state":"success","message":"已查询到订单","order":{"orderId":"A20261101001","itemName":"便携智能音箱 × 1","statusLabel":"运输中","carrier":"顺丰速运（演示）","trackingNo":"SF-DEMO-20261101","updatedAt":"2026-11-05 10:26","timeline":[{"time":"2026-11-05 10:26","location":"杭州转运中心","description":"包裹已发出"}]}}\n\n',
+    ])
+    expect(got.tools).toHaveLength(1)
+    expect(got.tools[0]).toMatchObject({
+      type: 'tool',
+      name: 'order_lookup',
+      state: 'success',
+      order: { orderId: 'A20261101001', trackingNo: 'SF-DEMO-20261101' },
+    })
+    expect(got.errors).toEqual([])
+  })
+
+  it.each([
+    '{"type":"tool","name":"order_lookup","state":"unknown","message":"状态异常"}',
+    '{"type":"tool","name":"order_lookup","state":"empty"}',
+  ])('非法 tool 事件报告 SSE_SCHEMA 错误：%s', async (payload) => {
+    const got = await run([`data: ${payload}\n\n`])
+    expect(got.tools).toEqual([])
+    expect(got.errorObjs[0]).toMatchObject({ code: 'SSE_SCHEMA', message: '订单查询数据格式异常' })
   })
 
   it('EOF 无 done 帧时 onDone 仍被调用一次（连接正常结束即视为完成）', async () => {

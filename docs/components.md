@@ -11,7 +11,8 @@ App
 │       │   └── SidePanelContent
 │       ├── ChatArea
 │       │   └── MessageItem
-│       │       └── SourceCard
+│       │       ├── SourceCard
+│       │       └── OrderStatusCard
 │       ├── Sheet（移动端导航）
 │       │   └── SidePanelContent
 │       ├── MistakesPanel
@@ -59,6 +60,10 @@ App
 ### `SourceCard`
 
 展示单条检索资料、出处与相关度。相关度阈值集中在 `src/lib/constants.ts`。
+
+### `OrderStatusCard`
+
+展示 `order_lookup` 工具返回的只读订单状态、运单号和物流时间线，并为空结果与查询错误提供独立状态。卡片明确标注演示数据，不提供退款、改单等写操作。
 
 ### `MistakesPanel`
 

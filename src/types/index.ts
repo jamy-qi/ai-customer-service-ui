@@ -27,6 +27,30 @@ export interface Handoff {
   message: string
 }
 
+export interface LogisticsEvent {
+  time: string
+  description: string
+  location?: string
+}
+
+export interface OrderSnapshot {
+  orderId: string
+  itemName: string
+  statusLabel: string
+  carrier: string
+  trackingNo: string
+  updatedAt: string
+  timeline: LogisticsEvent[]
+}
+
+/** 只读订单查询结果；真实后端应自行鉴权，前端不提供退款或改单操作。 */
+export interface OrderLookupResult {
+  name: 'order_lookup'
+  state: 'success' | 'empty' | 'error'
+  message: string
+  order?: OrderSnapshot
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -45,6 +69,8 @@ export interface ChatMessage {
   handoff?: Handoff
   /** 用户对本次回答的满意度，随会话保存在当前浏览器 */
   feedback?: AnswerFeedback
+  /** 只读订单与物流查询结果 */
+  tool?: OrderLookupResult
 }
 
 export interface ChatRequest {
@@ -89,6 +115,7 @@ export type SSEEvent =
   | { type: 'sources'; sources: Source[] }
   | { type: 'token'; content: string }
   | ({ type: 'handoff' } & Handoff)
+  | ({ type: 'tool' } & OrderLookupResult)
   | { type: 'done' }
   | ({ type: 'error' } & StreamError)
 

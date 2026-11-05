@@ -7,6 +7,7 @@ export interface StreamHandlers {
   onSources: (sources: Extract<SSEEvent, { type: 'sources' }>['sources']) => void
   onToken: (content: string) => void
   onHandoff: (handoff: Extract<SSEEvent, { type: 'handoff' }>) => void
+  onTool: (tool: Extract<SSEEvent, { type: 'tool' }>) => void
   onError: (error: StreamErrorPayload) => void
   onDone: () => void
 }
